@@ -87,6 +87,19 @@ class Employee implements Serializable {
     }
 }
 
+// Custom ObjectOutputStream to prevent multiple headers
+class AppendableObjectOutputStream extends ObjectOutputStream {
+    public AppendableObjectOutputStream(OutputStream out) throws IOException {
+        super(out);
+    }
+
+    @Override
+    protected void writeStreamHeader() throws IOException {
+        // Do not write a header to avoid corruption
+        reset();
+    }
+}
+
 public class EmployeeManagement {
     private static final String FILE_NAME = "employees.dat";
     
@@ -94,7 +107,7 @@ public class EmployeeManagement {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter Employee ID: ");
         int id = scanner.nextInt();
-        scanner.nextLine(); // consume newline
+        scanner.nextLine(); // Consume newline
         System.out.print("Enter Employee Name: ");
         String name = scanner.nextLine();
         System.out.print("Enter Designation: ");
@@ -103,8 +116,10 @@ public class EmployeeManagement {
         double salary = scanner.nextDouble();
         
         Employee employee = new Employee(id, name, designation, salary);
+        boolean fileExists = new File(FILE_NAME).exists();
 
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(FILE_NAME, true))) {
+        try (FileOutputStream fos = new FileOutputStream(FILE_NAME, true);
+             ObjectOutputStream out = fileExists ? new AppendableObjectOutputStream(fos) : new ObjectOutputStream(fos)) {
             out.writeObject(employee);
             System.out.println("Employee added successfully.");
         } catch (IOException e) {
@@ -113,6 +128,12 @@ public class EmployeeManagement {
     }
 
     public static void displayEmployees() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) {
+            System.out.println("No employees found.");
+            return;
+        }
+
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
             while (true) {
                 try {
@@ -123,7 +144,7 @@ public class EmployeeManagement {
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            System.out.println("Error reading employees: " + e.getMessage());
         }
     }
 
@@ -153,4 +174,3 @@ public class EmployeeManagement {
         }
     }
 }
-
